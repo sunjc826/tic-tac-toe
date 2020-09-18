@@ -5,6 +5,12 @@ const gameBoard = (function() {
     const EMPTY = 0;
     const CROSS = 1; // player 1
     const CIRCLE = 2; // player 2
+    const STATE = {
+        WIN : 3,
+        DRAW : 4,
+        ONGOING : 5,
+    }
+    
 
     let gameStart = false;
     let board;
@@ -14,12 +20,17 @@ const gameBoard = (function() {
     /*** public fields***/
     const data = {
         "Player One": CROSS,
-        "PLayer Two": CIRCLE,
+        "Player Two": CIRCLE,
+        "Empty" : EMPTY,
+        "Win" : STATE.WIN,
+        "Draw" : STATE.DRAW,
+        "Ongoing" : STATE.ONGOING,
     }
+
 
     /*** private methods***/
     function nextPlayer(x) {
-        return (x + 1) % 2;
+        return x === CROSS? CIRCLE : CROSS;
     }
 
 
@@ -43,45 +54,44 @@ const gameBoard = (function() {
      * otherwise, returns a boolean variable (true/false) indicating whether the board is filled.
      */
     function checkWin() {
-        let result;
+        let result = false;
         const winCondition = Math.pow(currentPlayer, BOARD_SIZE);
+        // console.log(winCondition);
         for (let i = 0; i < BOARD_SIZE; i++) {
-            result = rowBingo(i, winCondition);
-            if (result !== EMPTY) {
-                return result; 
-            }
-
-            result = columnBingo(i, winCondition);
-            if (result !== EMPTY) {
-                return result;
+            result = rowBingo(i, winCondition) || columnBingo(i, winCondition);
+            if (result) {
+                break;
             }
         }
 
-        result = diagonalBingo(winCondition);
-        if (result !== EMPTY) {
-            return result;
-        }
+        result = result || diagonalBingo(winCondition);
 
-        return boardFilled();
+        if (result) {
+            return STATE.WIN;
+        } else if (boardFilled()) {
+            return STATE.DRAW;
+        } else {
+            return STATE.ONGOING;
+        }
     }
 
     function boardFilled() {
-        return turn = BOARD_SIZE * BOARD_SIZE;
+        return turn === BOARD_SIZE * BOARD_SIZE;
     }
 
     function rowBingo(row, winCondition) {
         let product = 1;
         for (let i = 0; i < BOARD_SIZE; i++) {
-            product *= (board[row][i] + 1);
+            product *= board[row][i];
+            
         }
-        
         return product === winCondition;
     }
 
     function columnBingo(col, winCondition) {
         let product = 1;
         for (let i = 0; i < BOARD_SIZE; i++) {
-            product *= (board[i][col] + 1);
+            product *= board[i][col];
         }
         
         return product === winCondition;
@@ -98,17 +108,21 @@ const gameBoard = (function() {
         }
 
         // check the other diagonal
-        
+
         product = 1;
 
         for (let i = 0; i < BOARD_SIZE; i++) {
-            product *= (board[i][BOARD_SIZE - i - 1]);
+            product *= board[i][BOARD_SIZE - i - 1];
         }
 
         return product === winCondition;
     }
 
     // public methods
+    function printBoard() {
+        console.table(board);
+    }
+
     function initGame() {
         gameStart = true;
         initBoard();
@@ -119,12 +133,11 @@ const gameBoard = (function() {
     function updateCell(i, j) {
         turn++;
         board[i][j] = currentPlayer;
-        currentPlayer = nextPlayer(currentPlayer);
+        
         const result = checkWin();
-
+        currentPlayer = nextPlayer(currentPlayer);
         // if draw or someone has won
-        if (result !== false) {
-            console.log(result);
+        if (result !== STATE.ONGOING) {
             gameStart = false;
         }
         return result;
@@ -146,18 +159,10 @@ const gameBoard = (function() {
         return x === EMPTY;
     }
 
-    function isPlayerOne(x) {
-        return x === CROSS;
-    }
-
-    function isPlayerTwo(x) {
-        return x === CIRCLE;
-    }
-
     return {
         data,
-        initGame, updateCell,
-        getGameStart, getCurrentPlayer, getCellStatus, isEmpty
+        initGame, updateCell, printBoard,
+        getGameStart, getCurrentPlayer, getCellStatus,
     };
 
 })();
@@ -176,7 +181,7 @@ const displayController = (function() {
     const twoPlayBtn = modeSelectPanel.querySelector("#two-play");
     const cancelBtn = modeSelectPanel.querySelector("#cancel");
 
-    const statDisplay = gameDisplay.querySelector("stat-display");
+    const statDisplay = gameDisplay.querySelector("#stat-display");
 
     // add event listeners
     boardCells.forEach(cell => {
@@ -202,7 +207,7 @@ const displayController = (function() {
 
         const currentPlayer = gameBoard.getCurrentPlayer();
         const status = gameBoard.getCellStatus(i, j);
-        if (gameBoard.isEmpty(status)) { // make changes
+        if (gameBoard.data["Empty"] === status) { // make changes
             /*
              * Here, I choose to update the board display first before updating the underlying 
              * implementation. Because I want to draw first, then check if the game has been won.
@@ -213,7 +218,12 @@ const displayController = (function() {
             } else {
                 this.setAttribute("style", "background-color: blue;");
             }
-            gameBoard.updateCell(i, j);
+            const result = gameBoard.updateCell(i, j);
+            if (result === gameBoard.data["Win"]) {
+                updateStatDisplay(currentPlayer);
+            } else if (result === gameBoard.data["Draw"]) {
+                updateStatDisplay();
+            }
         } else { // do nothing; warn illegal move
             alert("Cell is occupied");
         }
@@ -243,15 +253,18 @@ const displayController = (function() {
     }
 
 
-    function updateGameDisplay() {
+    function updateStatDisplay(winner=null) {
+        if (winner === null) {
+            statDisplay.textContent = "Players draw!";
+        } else {
+            statDisplay.textContent = `${winner} wins!`;
+        }
     }
 
-    function updateStat() {
-
-    }
 
     function reset() {
         boardCells.forEach(cell => cell.setAttribute("style", "background-color : white"));
+        statDisplay.textContent = "";
         hide();
     }
 
