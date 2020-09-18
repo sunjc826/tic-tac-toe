@@ -1,0 +1,1 @@
+Optimise checkWin method by only checking the rows and columns containing the currently added cross/circle.

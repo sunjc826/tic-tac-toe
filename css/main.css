@@ -1,0 +1,104 @@
+body {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-color: black;
+    overflow: hidden;
+    padding-top: 1px;
+}
+
+main {
+    position: relative;
+    width: 80%;
+    height: calc(80% - 100px);
+    margin: 100px auto 0;
+    background-color:silver;
+}
+
+#game-display {
+    position: relative;
+    width: 70%;
+    height: 100%;
+    margin: 0 auto 0;
+
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas: 
+        "board board"
+        "board board"
+        "stat controls";
+}
+
+#board-display {
+    position: relative;
+    grid-area: board;
+    width: 100%;
+    height: calc(100% - 20px);
+    margin: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    border-style: solid;
+    border-color: black;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    background-color: white;
+    
+}
+
+#stat-display {
+    position: relative;
+    grid-area: stat;
+}
+
+#controls {
+    position: relative;
+    grid-area: controls;
+    display: grid;
+    grid-template-rows: 1fr 4fr;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+        "reset start-game"
+        "mode-select mode-select";
+}
+
+.board-cell {
+    border-style: solid;
+    border-color: black;
+    
+    border-top-width: 1px;
+    border-left-width: 1px;
+
+}
+
+#reset {
+    grid-area: reset;
+}
+
+#start-game {
+    grid-area: start-game;
+}
+
+#mode-select {
+    visibility: hidden;
+    position: relative;
+    width: 100%;
+    height: 80%;
+    grid-area: mode-select;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+
+#cpu {
+    flex-grow: 1;
+}
+
+#two-play {
+    flex-grow: 1;
+}
+
+#cancel {
+    flex-grow: 1;
+}
+
