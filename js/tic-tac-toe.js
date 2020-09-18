@@ -10,12 +10,17 @@ const gameBoard = (function() {
         DRAW : 4,
         ONGOING : 5,
     }
+    const GAMEMODE = {
+        ONE_PLAYER : "1",
+        TWO_PLAYER : "2",
+    }
     
 
     let gameStart = false;
     let board;
     let currentPlayer;
     let turn;
+    let gamemode;
 
     /*** public fields***/
     const data = {
@@ -25,6 +30,8 @@ const gameBoard = (function() {
         "Win" : STATE.WIN,
         "Draw" : STATE.DRAW,
         "Ongoing" : STATE.ONGOING,
+        "One Player" : GAMEMODE.ONE_PLAYER,
+        "Two Player" : GAMEMODE.TWO_PLAYER,
     }
 
 
@@ -143,6 +150,15 @@ const gameBoard = (function() {
         return result;
     }
 
+    function setGameMode(mode) {
+        gamemode = mode;
+    }
+
+    function getGameMode() {
+        console.log(gamemode);
+        return gamemode;
+    }
+
     function getGameStart() {
         return gameStart;
     }
@@ -162,7 +178,8 @@ const gameBoard = (function() {
     return {
         data,
         initGame, updateCell, printBoard,
-        getGameStart, getCurrentPlayer, getCellStatus,
+        setGameMode,
+        getGameMode, getGameStart, getCurrentPlayer, getCellStatus,
     };
 
 })();
@@ -181,6 +198,12 @@ const displayController = (function() {
     const twoPlayBtn = modeSelectPanel.querySelector("#two-play");
     const cancelBtn = modeSelectPanel.querySelector("#cancel");
 
+    const overlayPanel = controls.querySelector("#overlay");
+    const player = overlayPanel.querySelector("#player");
+    const player1 = overlayPanel.querySelector("#player1");
+    const player2 = overlayPanel.querySelector("#player2");
+    const confirmBtn = overlayPanel.querySelector("#confirm");
+
     const statDisplay = gameDisplay.querySelector("#stat-display");
 
     // add event listeners
@@ -193,6 +216,7 @@ const displayController = (function() {
     cpuBtn.addEventListener("click", cpuBtnListener);
     twoPlayBtn.addEventListener("click", twoPlayBtnListener);
     cancelBtn.addEventListener("click", cancelBtnListener);
+    confirmBtn.addEventListener("click", confirmBtnListener)
 
     function cellListener() {
         if (!gameBoard.getGameStart()) {
@@ -239,17 +263,40 @@ const displayController = (function() {
 
     function cpuBtnListener() {
         reset();
-        hide();
+        gameBoard.setGameMode(gameBoard.data["One Player"]);
+        overlayPanel.setAttribute("style", "display: block;");
+        player.setAttribute("style", "display: block;");
     }
 
     function twoPlayBtnListener() {
         reset();
-        hide();
-        gameBoard.initGame();
+        gameBoard.setGameMode(gameBoard.data["Two Player"]);
+        overlayPanel.setAttribute("style", "display: block;");
+        player1.setAttribute("style", "display: block;");
+        player2.setAttribute("style", "display: block;");
     }
 
     function cancelBtnListener() {
-        hide();
+        hidePlayerSelect();
+    }
+
+    function confirmBtnListener() {
+        const inputs = overlayPanel.querySelectorAll("input");
+        for (let i = 0; i < inputs.length; i++) {
+            let input = inputs[i];
+            if (input.classList.contains(gameBoard.getGameMode())) {
+                if (input.value === undefined || input.value.length === 0) {
+                    alert("Please input all values");
+                    return;
+                }
+            }
+        }
+        // create players
+        
+
+        hideOverlay();
+        hidePlayerSelect();
+        gameBoard.initGame();
     }
 
 
@@ -265,21 +312,29 @@ const displayController = (function() {
     function reset() {
         boardCells.forEach(cell => cell.setAttribute("style", "background-color : white"));
         statDisplay.textContent = "";
-        hide();
+        hidePlayerSelect();
     }
 
     function show() {
         modeSelectPanel.setAttribute("style", "visibility: visible;");
     }
 
-    function hide() {
+    function hideOverlay() {
+        overlayPanel.setAttribute("style", "display: none;");
+        player.setAttribute("style", "display: none;");
+        player1.setAttribute("style", "display: none;");
+        player2.setAttribute("style", "display: none;");
+    }
+
+    function hidePlayerSelect() {
         modeSelectPanel.setAttribute("style", "visibility: hidden");
     }
 
 
 })();
 
-const Player = function(name) {
-
+const Player = function(playerName) {
+    const name = playerName;
+    
 }
 
