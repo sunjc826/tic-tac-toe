@@ -93,7 +93,7 @@ const gameBoard = (function() {
         const winCondition = Math.pow(player.getSymbol(), board.length);
         // console.log(winCondition);
         for (let i = 0; i < board.length; i++) {
-            result = rowBingo(board, i, winCondition) || columnBingo(i, winCondition);
+            result = rowBingo(board, i, winCondition) || columnBingo(board, i, winCondition);
             if (result) {
                 break;
             }
@@ -281,6 +281,7 @@ const displayController = (function() {
 
         // CPU move
         [i, j] = gameBoard.cpuMove();
+        console.log("cpumove " + i + " " + j);
         currentPlayer = gameBoard.getCurrentPlayer();
         result = gameBoard.updateCell(i, j);
         boardDisplay.querySelector(`#\\3${i} \\,${j}`).setAttribute("style", "background-color: blue;");
@@ -472,7 +473,7 @@ const Computer = function(playerSymbol) {
         }
     })();
 
-    const MinimaxAI = (function() {
+    const minimaxAI = (function() {
         function generateMove(cpuData) {
             const board = cpuData.board;
             const boardSize = cpuData.boardSize;
@@ -482,37 +483,47 @@ const Computer = function(playerSymbol) {
             const win = cpuData.win;
             const draw = cpuData.draw;
             const players = cpuData.players;
-            const aiPlayer = cpuData.currentPlayerIndex(); // which player is the computer
+            const aiPlayerIndex = cpuData.currentPlayerIndex(); // which player is the computer
 
-            const depth = boardSize * boardSize;
-            let currentPlayerIndex = aiPlayer;
 
-            search(board);
-
-            function searchCell(board, i, j) {
+            function searchCell(board, i, j, currentPlayerIndex, turn) {
+                turn++;
                 const newBoard = copyBoard(board);
-                newBoard[i][j] = currentPlayerIndex.getSymbol();
-                checkWin(board)
-                currentPlayerIndex = (currentPlayerIndex + 1) % 2;
-
-                search(newBoard);
+                newBoard[i][j] = players[currentPlayerIndex].getSymbol();
+                let score = 0;
+                let result = checkWin(board, players[currentPlayerIndex], turn);
+                if (result === win) {
+                    if (currentPlayerIndex === aiPlayerIndex) { // winner is AI
+                        score++;
+                    } else { // winner is human
+                        score--;
+                    }
+                } else if (result === draw) {
+                    // netural, no change to score
+                } else { // game still ongoing
+                    currentPlayerIndex = (currentPlayerIndex + 1) % 2;
+                    score = search(newBoard, currentPlayerIndex, turn)[1];
+                }
+                return score;
             }
 
-            function search(board) {
-                let bestScore = -100;
-                let best = [null, null];
+            function search(board, currentPlayerIndex, turn) {
+                let bestScore = -100000;
+                let bestChoice = [null, null];
                 for (let i = 0; i < boardSize; i++) {
                     for (let j = 0; j < boardSize; j++) {
                         if (board[i][j] === empty) {
-                            let score = searchCell(board, i, j);
+                            let score = searchCell(board, i, j, currentPlayerIndex, turn);
+                            //console.log(turn);
                             if (score > bestScore) {
-                                best[0] = i;
-                                best[1] = j;
+                                bestChoice[0] = i;
+                                bestChoice[1] = j;
+                                bestScore = score;
                             }
                         }
                     }
                 }
-                return best;    
+                return [bestChoice, bestScore];    
             }
 
             function copyBoard(board) {
@@ -526,6 +537,8 @@ const Computer = function(playerSymbol) {
                 }
                 return newBoard;
             }
+
+            return search(board, aiPlayerIndex, turn)[0];
         }
 
         
@@ -533,7 +546,7 @@ const Computer = function(playerSymbol) {
         return {
             generateMove, 
         }
-    })
+    })();
 
     function getName() {
         return name;
@@ -544,7 +557,7 @@ const Computer = function(playerSymbol) {
     }
 
     function generateMove(cpuData) {
-        return randomAI.generateMove(cpuData);
+        return minimaxAI.generateMove(cpuData);
     }
 
     return {
