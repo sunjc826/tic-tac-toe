@@ -494,9 +494,9 @@ const Computer = function(playerSymbol) {
                 let result = checkWin(board, players[currentPlayerIndex], turn);
                 if (result === win) {
                     if (currentPlayerIndex === aiPlayerIndex) { // winner is AI
-                        score++;
+                        score = 1;
                     } else { // winner is human
-                        score--;
+                        score = -10;
                     }
                 } else if (result === draw) {
                     // netural, no change to score
