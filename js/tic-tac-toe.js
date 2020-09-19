@@ -14,13 +14,23 @@ const gameBoard = (function() {
         ONE_PLAYER : "1",
         TWO_PLAYER : "2",
     }
+
+    let player1;
+    let player2;
     
 
     let gameStart = false;
-    let board;
+    const board = [];
     let currentPlayer;
     let turn;
     let gamemode;
+
+    const cpuData = {
+        board: board,
+        turn: () => turn, // so that turn is dynamically updated
+        empty: EMPTY,
+        boardSize: BOARD_SIZE,
+    }
 
     /*** public fields***/
     const data = {
@@ -45,13 +55,23 @@ const gameBoard = (function() {
      * Create empty board.
      */
     function initBoard() {
-        board = [];
+        board.length = 0;
         for (let i = 0; i < BOARD_SIZE; i++) {
             const row = [];
             for (let j = 0; j < BOARD_SIZE; j++) {
                 row.push(EMPTY);
             }
             board.push(row);
+        }
+    }
+
+    function initPlayer(playerOneName, playerTwoName) {
+        if (gamemode === GAMEMODE.TWO_PLAYER) {
+            player1 = Player(playerOneName);
+            player2 = Player(playerTwoName);
+        } else {
+            player1 = Player(playerOneName);
+            player2 = Computer();
         }
     }
 
@@ -125,17 +145,23 @@ const gameBoard = (function() {
         return product === winCondition;
     }
 
-    // public methods
+    /*** public methods***/
     function printBoard() {
         console.table(board);
     }
 
-    function initGame() {
+    function initGame(playerData) {
         gameStart = true;
         initBoard();
+        initPlayer(...playerData);
         currentPlayer = CROSS;
         turn = 0;
     }
+
+    function cpuMove() {
+        return player2.generateMove(cpuData);
+    }
+
 
     function updateCell(i, j) {
         turn++;
@@ -171,13 +197,9 @@ const gameBoard = (function() {
         return board[i][j];
     }
 
-    function isEmpty(x) {
-        return x === EMPTY;
-    }
-
     return {
         data,
-        initGame, updateCell, printBoard,
+        initGame, updateCell, printBoard, cpuMove,
         setGameMode,
         getGameMode, getGameStart, getCurrentPlayer, getCellStatus,
     };
@@ -218,6 +240,70 @@ const displayController = (function() {
     cancelBtn.addEventListener("click", cancelBtnListener);
     confirmBtn.addEventListener("click", confirmBtnListener)
 
+    const onePlayerLogic = function(cell, i, j) {
+        const currentPlayer = gameBoard.getCurrentPlayer();
+        const status = gameBoard.getCellStatus(i, j);
+        let result;
+        if (gameBoard.data["Empty"] === status) { // make changes
+            
+
+            if (currentPlayer === gameBoard.data["Player One"]) {
+                cell.setAttribute("style", "background-color: green;");
+            } else {
+                alert("Awaiting CPU move");
+                return;
+            }
+            result = gameBoard.updateCell(i, j);
+
+            if (result === gameBoard.data["Win"]) {
+                updateStatDisplay(currentPlayer);
+                return;
+            } else if (result === gameBoard.data["Draw"]) {
+                updateStatDisplay();
+                return;
+            }
+        } else { // do nothing; warn illegal move
+            alert("Cell is occupied");
+            return;
+        }
+        
+        // CPU move
+        [i, j] = gameBoard.cpuMove();
+        result = gameBoard.updateCell(i, j);
+        boardDisplay.querySelector(`#\\3${i} \\,${j}`).setAttribute("style", "background-color: blue;");
+        if (result === gameBoard.data["Win"]) {
+            updateStatDisplay(currentPlayer);
+        } else if (result === gameBoard.data["Draw"]) {
+            updateStatDisplay();
+        }
+    }
+
+    const twoPlayerLogic = function(cell, i, j) {
+        const currentPlayer = gameBoard.getCurrentPlayer();
+        const status = gameBoard.getCellStatus(i, j);
+        if (gameBoard.data["Empty"] === status) { // make changes
+            /*
+             * Here, I choose to update the board display first before updating the underlying 
+             * implementation. I want to draw first, then check if the game has been won.
+             */
+
+            if (currentPlayer === gameBoard.data["Player One"]) {
+                cell.setAttribute("style", "background-color: green;");
+            } else {
+                cell.setAttribute("style", "background-color: blue;");
+            }
+            const result = gameBoard.updateCell(i, j);
+            if (result === gameBoard.data["Win"]) {
+                updateStatDisplay(currentPlayer);
+            } else if (result === gameBoard.data["Draw"]) {
+                updateStatDisplay();
+            }
+        } else { // do nothing; warn illegal move
+            alert("Cell is occupied");
+        }
+
+    }
+
     function cellListener() {
         if (!gameBoard.getGameStart()) {
             return;
@@ -228,28 +314,11 @@ const displayController = (function() {
         const j = parseInt(id.charAt(2));
 
         console.log(i + " row " + j + " column");
-
-        const currentPlayer = gameBoard.getCurrentPlayer();
-        const status = gameBoard.getCellStatus(i, j);
-        if (gameBoard.data["Empty"] === status) { // make changes
-            /*
-             * Here, I choose to update the board display first before updating the underlying 
-             * implementation. Because I want to draw first, then check if the game has been won.
-             */
-
-            if (currentPlayer === gameBoard.data["Player One"]) {
-                this.setAttribute("style", "background-color: green;");
-            } else {
-                this.setAttribute("style", "background-color: blue;");
-            }
-            const result = gameBoard.updateCell(i, j);
-            if (result === gameBoard.data["Win"]) {
-                updateStatDisplay(currentPlayer);
-            } else if (result === gameBoard.data["Draw"]) {
-                updateStatDisplay();
-            }
-        } else { // do nothing; warn illegal move
-            alert("Cell is occupied");
+        const gamemode = gameBoard.getGameMode();
+        if (gamemode === gameBoard.data["One Player"]) {
+            onePlayerLogic(this, i, j);
+        } else {
+            twoPlayerLogic(this, i, j);
         }
     }
 
@@ -282,21 +351,23 @@ const displayController = (function() {
 
     function confirmBtnListener() {
         const inputs = overlayPanel.querySelectorAll("input");
+        const playerData = [];
         for (let i = 0; i < inputs.length; i++) {
             let input = inputs[i];
             if (input.classList.contains(gameBoard.getGameMode())) {
                 if (input.value === undefined || input.value.length === 0) {
                     alert("Please input all values");
                     return;
+                } else {
+                    playerData.push(input.value);
                 }
             }
         }
         // create players
-        
 
         hideOverlay();
         hidePlayerSelect();
-        gameBoard.initGame();
+        gameBoard.initGame(playerData);
     }
 
 
@@ -336,5 +407,72 @@ const displayController = (function() {
 const Player = function(playerName) {
     const name = playerName;
     
+    function getName() {
+        return this.name;
+    }
+
+    return {
+        getName,
+    }
 }
 
+
+const Computer = function() {
+    const name = "CPU";
+    
+    const randomAI = (function() {
+        function generateMove(cpuData) {
+            console.log(cpuData);
+            const board = cpuData.board;
+            const boardSize = cpuData.boardSize;
+            const turn = cpuData.turn();
+            const empty = cpuData.empty;
+            const randomCell = randomInt(0, boardSize * boardSize - turn);
+            let count = 0;
+            for (let i = 0; i < boardSize; i++) {
+                for (let j = 0; j < boardSize; j++) {
+                    // do not count occupied cells
+                    if (board[i][j] !== empty) {
+                        continue;
+                    }
+                    if (count === randomCell) {
+                        console.log("cell " + i + " " + j);
+                        return [i, j];
+                    }
+                    count++;
+                }
+            }
+            
+        }
+
+        function randomInt(low, high) {
+            return low + Math.floor(Math.random() * (high - low));
+        }
+
+        return {
+            generateMove,
+        }
+    })();
+
+    const MinimaxAI = (function() {
+        function generateMove(cpuData) {
+
+        }
+
+        return {
+            generateMove, 
+        }
+    })
+
+    function getName() {
+        return this.name;
+    }
+
+    function generateMove(cpuData) {
+        return randomAI.generateMove(cpuData);
+    }
+
+    return {
+        getName, generateMove,
+    }
+}
