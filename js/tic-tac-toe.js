@@ -99,7 +99,7 @@ const gameBoard = (function() {
             }
         }
 
-        result = result || diagonalBingo(winCondition);
+        result = result || diagonalBingo(board, winCondition);
 
         if (result) {
             return STATE.WIN;
@@ -508,22 +508,33 @@ const Computer = function(playerSymbol) {
             }
 
             function search(board, currentPlayerIndex, turn) {
-                let bestScore = -100000;
-                let bestChoice = [null, null];
+                let score = (currentPlayerIndex === aiPlayerIndex) ? -100000 : 100000;
+                let choice = [null, null];
                 for (let i = 0; i < boardSize; i++) {
                     for (let j = 0; j < boardSize; j++) {
                         if (board[i][j] === empty) {
-                            let score = searchCell(board, i, j, currentPlayerIndex, turn);
-                            //console.log(turn);
-                            if (score > bestScore) {
-                                bestChoice[0] = i;
-                                bestChoice[1] = j;
-                                bestScore = score;
+                            let moveScore = searchCell(board, i, j, currentPlayerIndex, turn);
+                            // minimax
+                            // ai chooses high scoring moves
+                            // human chooses lowest scoring moves
+
+                            if (currentPlayerIndex === aiPlayerIndex) { // ai choosing
+                                if (moveScore > score) {
+                                    choice[0] = i;
+                                    choice[1] = j;
+                                    score = moveScore;
+                                }
+                            } else { // human choosing
+                                if (moveScore < score) {
+                                    choice[0] = i;
+                                    choice[1] = j;
+                                    score = moveScore;
+                                }
                             }
                         }
                     }
                 }
-                return [bestChoice, bestScore];    
+                return [choice, score];    
             }
 
             function copyBoard(board) {
