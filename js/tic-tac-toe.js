@@ -1,4 +1,3 @@
-
 const gameBoard = (function() {
     /*** private fields***/
     const BOARD_SIZE = 3;
@@ -17,11 +16,11 @@ const gameBoard = (function() {
 
     let player1;
     let player2;
-    
+    const players = [null, null];    
 
     let gameStart = false;
     const board = [];
-    let currentPlayer;
+    let currentPlayerIndex; // current player index
     let turn;
     let gamemode;
 
@@ -30,12 +29,18 @@ const gameBoard = (function() {
         turn: () => turn, // so that turn is dynamically updated
         empty: EMPTY,
         boardSize: BOARD_SIZE,
+        players: players,
+        checkWin: checkWin,
+        win: STATE.WIN,
+        draw: STATE.DRAW,
+        ongoing: STATE.ONGOING,
+        currentPlayerIndex: () => currentPlayerIndex,
     }
 
     /*** public fields***/
     const data = {
-        "Player One": CROSS,
-        "Player Two": CIRCLE,
+        "Player One": () => player1, // since player1 is dynamic due to Player() factory call
+        "Player Two": () => player2, // since player2 is dynamic due to Player()/Computer() factory call
         "Empty" : EMPTY,
         "Win" : STATE.WIN,
         "Draw" : STATE.DRAW,
@@ -46,8 +51,8 @@ const gameBoard = (function() {
 
 
     /*** private methods***/
-    function nextPlayer(x) {
-        return x === CROSS? CIRCLE : CROSS;
+    function nextPlayerIndex(x) {
+        return (x + 1) % 2;
     }
 
 
@@ -67,25 +72,28 @@ const gameBoard = (function() {
 
     function initPlayer(playerOneName, playerTwoName) {
         if (gamemode === GAMEMODE.TWO_PLAYER) {
-            player1 = Player(playerOneName);
-            player2 = Player(playerTwoName);
+            player1 = Player(playerOneName, CROSS);
+            player2 = Player(playerTwoName, CIRCLE);
         } else {
-            player1 = Player(playerOneName);
-            player2 = Computer();
+            player1 = Player(playerOneName, CROSS);
+            player2 = Computer(CIRCLE);
         }
+        players[0] = player1;
+        players[1] = player2;
     }
 
     /**
      * Checks whether the game is already won by either player.
      * If game is won, returns the integer corresponding to the winning player,
      * otherwise, returns a boolean variable (true/false) indicating whether the board is filled.
+     * Refactored to include more arguments so that Computer class can use this method as well.
      */
-    function checkWin() {
+    function checkWin(board, player, turn) {
         let result = false;
-        const winCondition = Math.pow(currentPlayer, BOARD_SIZE);
+        const winCondition = Math.pow(player.getSymbol(), board.length);
         // console.log(winCondition);
-        for (let i = 0; i < BOARD_SIZE; i++) {
-            result = rowBingo(i, winCondition) || columnBingo(i, winCondition);
+        for (let i = 0; i < board.length; i++) {
+            result = rowBingo(board, i, winCondition) || columnBingo(i, winCondition);
             if (result) {
                 break;
             }
@@ -95,38 +103,38 @@ const gameBoard = (function() {
 
         if (result) {
             return STATE.WIN;
-        } else if (boardFilled()) {
+        } else if (boardFilled(turn, board.length)) {
             return STATE.DRAW;
         } else {
             return STATE.ONGOING;
         }
     }
 
-    function boardFilled() {
-        return turn === BOARD_SIZE * BOARD_SIZE;
+    function boardFilled(turn, boardSize) {
+        return turn === boardSize * boardSize;
     }
 
-    function rowBingo(row, winCondition) {
+    function rowBingo(board, row, winCondition) {
         let product = 1;
-        for (let i = 0; i < BOARD_SIZE; i++) {
+        for (let i = 0; i < board.length; i++) {
             product *= board[row][i];
             
         }
         return product === winCondition;
     }
 
-    function columnBingo(col, winCondition) {
+    function columnBingo(board, col, winCondition) {
         let product = 1;
-        for (let i = 0; i < BOARD_SIZE; i++) {
+        for (let i = 0; i < board.length; i++) {
             product *= board[i][col];
         }
         
         return product === winCondition;
     }
 
-    function diagonalBingo(winCondition) {
+    function diagonalBingo(board, winCondition) {
         let product = 1;
-        for (let i = 0; i < BOARD_SIZE; i++) {
+        for (let i = 0; i < board.length; i++) {
             product *= board[i][i];
         }
 
@@ -138,8 +146,8 @@ const gameBoard = (function() {
 
         product = 1;
 
-        for (let i = 0; i < BOARD_SIZE; i++) {
-            product *= board[i][BOARD_SIZE - i - 1];
+        for (let i = 0; i < board.length; i++) {
+            product *= board[i][board.length - i - 1];
         }
 
         return product === winCondition;
@@ -154,7 +162,7 @@ const gameBoard = (function() {
         gameStart = true;
         initBoard();
         initPlayer(...playerData);
-        currentPlayer = CROSS;
+        currentPlayerIndex = 0;
         turn = 0;
     }
 
@@ -165,10 +173,12 @@ const gameBoard = (function() {
 
     function updateCell(i, j) {
         turn++;
-        board[i][j] = currentPlayer;
+        console.log("curplayer " + currentPlayerIndex);
+        board[i][j] = players[currentPlayerIndex].getSymbol();
         
-        const result = checkWin();
-        currentPlayer = nextPlayer(currentPlayer);
+        const result = checkWin(board, players[currentPlayerIndex], turn);
+        currentPlayerIndex = nextPlayerIndex(currentPlayerIndex);
+
         // if draw or someone has won
         if (result !== STATE.ONGOING) {
             gameStart = false;
@@ -189,8 +199,12 @@ const gameBoard = (function() {
         return gameStart;
     }
 
+    function getCurrentPlayerIndex() {
+        return currentPlayerIndex;
+    }
+
     function getCurrentPlayer() {
-        return currentPlayer;
+        return players[currentPlayerIndex];
     }
 
     function getCellStatus(i, j) {
@@ -241,13 +255,11 @@ const displayController = (function() {
     confirmBtn.addEventListener("click", confirmBtnListener)
 
     const onePlayerLogic = function(cell, i, j) {
-        const currentPlayer = gameBoard.getCurrentPlayer();
+        let currentPlayer = gameBoard.getCurrentPlayer();
         const status = gameBoard.getCellStatus(i, j);
         let result;
         if (gameBoard.data["Empty"] === status) { // make changes
-            
-
-            if (currentPlayer === gameBoard.data["Player One"]) {
+            if (currentPlayer === gameBoard.data["Player One"]()) {
                 cell.setAttribute("style", "background-color: green;");
             } else {
                 alert("Awaiting CPU move");
@@ -266,9 +278,10 @@ const displayController = (function() {
             alert("Cell is occupied");
             return;
         }
-        
+
         // CPU move
         [i, j] = gameBoard.cpuMove();
+        currentPlayer = gameBoard.getCurrentPlayer();
         result = gameBoard.updateCell(i, j);
         boardDisplay.querySelector(`#\\3${i} \\,${j}`).setAttribute("style", "background-color: blue;");
         if (result === gameBoard.data["Win"]) {
@@ -287,7 +300,7 @@ const displayController = (function() {
              * implementation. I want to draw first, then check if the game has been won.
              */
 
-            if (currentPlayer === gameBoard.data["Player One"]) {
+            if (currentPlayer === gameBoard.data["Player One"]()) {
                 cell.setAttribute("style", "background-color: green;");
             } else {
                 cell.setAttribute("style", "background-color: blue;");
@@ -301,7 +314,6 @@ const displayController = (function() {
         } else { // do nothing; warn illegal move
             alert("Cell is occupied");
         }
-
     }
 
     function cellListener() {
@@ -375,7 +387,7 @@ const displayController = (function() {
         if (winner === null) {
             statDisplay.textContent = "Players draw!";
         } else {
-            statDisplay.textContent = `${winner} wins!`;
+            statDisplay.textContent = `${winner.getName()} wins!`;
         }
     }
 
@@ -404,29 +416,35 @@ const displayController = (function() {
 
 })();
 
-const Player = function(playerName) {
+const Player = function(playerName, playerSymbol) {
     const name = playerName;
+    const symbol = playerSymbol;
     
     function getName() {
-        return this.name;
+        return name;
+    }
+
+    function getSymbol() {
+        return symbol;
     }
 
     return {
-        getName,
+        getName, getSymbol,
     }
 }
 
 
-const Computer = function() {
+const Computer = function(playerSymbol) {
     const name = "CPU";
+    const symbol = playerSymbol;
     
     const randomAI = (function() {
         function generateMove(cpuData) {
-            console.log(cpuData);
             const board = cpuData.board;
             const boardSize = cpuData.boardSize;
             const turn = cpuData.turn();
             const empty = cpuData.empty;
+
             const randomCell = randomInt(0, boardSize * boardSize - turn);
             let count = 0;
             for (let i = 0; i < boardSize; i++) {
@@ -456,8 +474,61 @@ const Computer = function() {
 
     const MinimaxAI = (function() {
         function generateMove(cpuData) {
+            const board = cpuData.board;
+            const boardSize = cpuData.boardSize;
+            const turn = cpuData.turn();
+            const empty = cpuData.empty;
+            const checkWin = cpuData.checkWin;
+            const win = cpuData.win;
+            const draw = cpuData.draw;
+            const players = cpuData.players;
+            const aiPlayer = cpuData.currentPlayerIndex(); // which player is the computer
 
+            const depth = boardSize * boardSize;
+            let currentPlayerIndex = aiPlayer;
+
+            search(board);
+
+            function searchCell(board, i, j) {
+                const newBoard = copyBoard(board);
+                newBoard[i][j] = currentPlayerIndex.getSymbol();
+                checkWin(board)
+                currentPlayerIndex = (currentPlayerIndex + 1) % 2;
+
+                search(newBoard);
+            }
+
+            function search(board) {
+                let bestScore = -100;
+                let best = [null, null];
+                for (let i = 0; i < boardSize; i++) {
+                    for (let j = 0; j < boardSize; j++) {
+                        if (board[i][j] === empty) {
+                            let score = searchCell(board, i, j);
+                            if (score > bestScore) {
+                                best[0] = i;
+                                best[1] = j;
+                            }
+                        }
+                    }
+                }
+                return best;    
+            }
+
+            function copyBoard(board) {
+                const newBoard = [];
+                for (let i = 0; i < boardSize; i++) {
+                    const row = [];
+                    for (let j = 0; j < boardSize; j++) {
+                        row.push(board[i][j]);
+                    }
+                    newBoard.push(row);
+                }
+                return newBoard;
+            }
         }
+
+        
 
         return {
             generateMove, 
@@ -465,7 +536,11 @@ const Computer = function() {
     })
 
     function getName() {
-        return this.name;
+        return name;
+    }
+
+    function getSymbol() {
+        return symbol;
     }
 
     function generateMove(cpuData) {
@@ -473,6 +548,6 @@ const Computer = function() {
     }
 
     return {
-        getName, generateMove,
+        getName, getSymbol, generateMove,
     }
 }
